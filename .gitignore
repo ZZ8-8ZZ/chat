@@ -1,4 +1,5 @@
 .DS_Store
+room_pwd.json
 **/node_modules
 /dist
 
@@ -20,3 +21,6 @@ yarn-error.log*
 *.sln
 *.sw?
 
+internal-chat-linux
+internal-chat-macos
+internal-chat-win.exe
