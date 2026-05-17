@@ -981,6 +981,12 @@ let qrcodeInstance = null;
 let serverPublicUrl = '';
 
 async function getServerUrl() {
+  const hostname = window.location.hostname;
+  
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+  
   try {
     const res = await fetch('/api/server-info');
     const data = await res.json();
