@@ -41,6 +41,21 @@ function getLocalIP() {
   return candidates.length > 0 ? candidates[0].address : '127.0.0.1';
 }
 
+// MIME 类型映射
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp'
+};
+
 // 创建 HTTP 服务器
 const server = http.createServer((req, res) => {
   let urlPath = decodeURIComponent(req.url.split('?')[0]); // 去掉查询参数
@@ -62,8 +77,12 @@ const server = http.createServer((req, res) => {
       filePath = path.join(HTTP_DIRECTORY, 'index.html');
     }
 
+    // 设置 Content-Type
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+
     // 设置缓存头
-    const ext = path.extname(filePath);
     if (ext === '.js' || ext === '.css') {
       res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30天缓存
     }
