@@ -819,3 +819,76 @@ textarea#messageInput:focus {
     transform: rotate(0deg) scale(1);
   }
 }
+
+/* QR Code Button */
+.qrcode-btn {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .qrcode-btn {
+    display: none;
+  }
+}
+
+/* QR Code Modal */
+.qrcode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+#qrcode {
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+#qrcode img {
+  display: block;
+}
+
+.qrcode-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.qrcode-url {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  word-break: break-all;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  max-width: 100%;
+  font-family: monospace;
+}
+
+.qrcode-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.qrcode-copy-btn:hover {
+  background: var(--primary-hover);
+}
+
+.qrcode-copy-btn.success {
+  background: #10b981;
+}

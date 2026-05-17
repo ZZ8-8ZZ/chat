@@ -841,6 +841,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.querySelector('.nickname-btn')?.addEventListener('click', showNicknameModal);
   document.querySelector('.create-room-btn')?.addEventListener('click', showCreateRoomModal);
+  document.getElementById('qrcodeBtn')?.addEventListener('click', showQrcodeModal);
 
   const themeToggle = document.getElementById('themeToggle');
   if (themeToggle) {
@@ -960,6 +961,90 @@ function copyRoomUrl() {
     setTimeout(() => {
       btn.classList.remove('success');
       btn.innerHTML = originalIcon;
+    }, 2000);
+  }
+
+  try {
+    navigator.clipboard.writeText(url).then(copySuccess);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    copySuccess();
+  }
+}
+
+let qrcodeInstance = null;
+let serverPublicUrl = '';
+
+async function getServerUrl() {
+  try {
+    const res = await fetch('/api/server-info');
+    const data = await res.json();
+    const protocol = window.location.protocol;
+    return `${protocol}//${data.ip}:${data.port}`;
+  } catch {
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+}
+
+async function showQrcodeModal() {
+  const modal = document.getElementById('qrcodeModal');
+  const qrcodeDiv = document.getElementById('qrcode');
+  const qrcodeUrl = document.getElementById('qrcodeUrl');
+  if (!modal || !qrcodeDiv || !qrcodeUrl) return;
+  
+  const serverBase = await getServerUrl();
+  const roomPath = window.location.pathname;
+  serverPublicUrl = `${serverBase}${roomPath}`;
+  
+  qrcodeUrl.textContent = serverPublicUrl;
+  
+  qrcodeDiv.innerHTML = '';
+  
+  qrcodeInstance = new QRCode(qrcodeDiv, {
+    text: serverPublicUrl,
+    width: 200,
+    height: 200,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  
+  modal.style.display = 'block';
+  
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeQrcodeModal();
+    }
+  };
+}
+
+function closeQrcodeModal() {
+  const modal = document.getElementById('qrcodeModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function copyQrcodeUrl() {
+  const url = serverPublicUrl || window.location.href;
+  const btn = document.querySelector('.qrcode-copy-btn');
+  
+  function copySuccess() {
+    if (!btn) return;
+    btn.classList.add('success');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <span>已复制</span>
+    `;
+    setTimeout(() => {
+      btn.classList.remove('success');
+      btn.innerHTML = originalHTML;
     }, 2000);
   }
 

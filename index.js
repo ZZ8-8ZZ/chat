@@ -18,9 +18,40 @@ console.log = function() {
 const HTTP_PORT = process.env.PORT || process.argv[2] || 8081;
 const HTTP_DIRECTORY = path.join(__dirname, 'www'); // 静态文件目录
 
+function getLocalIP() {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  const candidates = [];
+  
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        candidates.push({ name, address: iface.address });
+      }
+    }
+  }
+  
+  const privatePrefix = ['192.168.', '10.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.'];
+  
+  for (const prefix of privatePrefix) {
+    const match = candidates.find(c => c.address.startsWith(prefix));
+    if (match) return match.address;
+  }
+  
+  return candidates.length > 0 ? candidates[0].address : '127.0.0.1';
+}
+
 // 创建 HTTP 服务器
 const server = http.createServer((req, res) => {
   let urlPath = decodeURIComponent(req.url.split('?')[0]); // 去掉查询参数
+  
+  if (urlPath === '/api/server-info') {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.end(JSON.stringify({ ip: getLocalIP(), port: HTTP_PORT }));
+    return;
+  }
+  
   if (urlPath === '/') {
     urlPath = '/index.html'; // 默认访问 index.html
   }
@@ -42,7 +73,10 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(HTTP_PORT, () => {
+  const localIP = getLocalIP();
   console.log(`server start on port ${HTTP_PORT}`);
+  console.log(`Local:   http://localhost:${HTTP_PORT}`);
+  console.log(`Network: http://${localIP}:${HTTP_PORT}`);
 });
 
 

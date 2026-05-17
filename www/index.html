@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"> -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/inter-ui/3.19.3/inter.min.css">
+  <script src="https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     (function() {
       var t = localStorage.getItem('theme');
@@ -95,6 +96,18 @@
             </svg>
             <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          <button class="icon-btn qrcode-btn" id="qrcodeBtn" title="扫码访问">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="8" height="8" rx="1"></rect>
+              <rect x="14" y="2" width="8" height="8" rx="1"></rect>
+              <rect x="2" y="14" width="8" height="8" rx="1"></rect>
+              <rect x="14" y="14" width="4" height="4"></rect>
+              <line x1="22" y1="14" x2="22" y2="14.01"></line>
+              <line x1="22" y1="18" x2="22" y2="22"></line>
+              <line x1="18" y1="22" x2="18" y2="22.01"></line>
+              <line x1="14" y1="22" x2="14" y2="22.01"></line>
             </svg>
           </button>
           <button class="icon-btn nickname-btn" title="设置昵称">
@@ -200,6 +213,27 @@
       <div class="modal-footer">
         <button onclick="closeCreateRoomModal()">取消</button>
         <button onclick="submitCreateRoom()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="qrcodeModal">
+    <div class="modal-content">
+      <h3>扫码访问</h3>
+      <div class="qrcode-container">
+        <div id="qrcode"></div>
+        <p class="qrcode-hint">使用手机浏览器扫描二维码即可访问</p>
+        <div class="qrcode-url" id="qrcodeUrl"></div>
+        <button class="copy-url-btn qrcode-copy-btn" onclick="copyQrcodeUrl()" title="复制链接">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>复制链接</span>
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeQrcodeModal()">关闭</button>
       </div>
     </div>
   </div>
