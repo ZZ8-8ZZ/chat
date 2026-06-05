@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>发个东西 - 局域网传输工具</title>
   <meta name="description" content="一个简单易用的局域网文件传输工具，基于WebRTC实现点对点连接，支持文本和文件快速传输，无需中转服务器，安全高效。" />
+  <link rel="icon" href="./favicon1.ico" type="image/x-icon">
   <link rel="stylesheet" href="./style.css?v=23">
   <!-- <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +16,17 @@
   <script>
     (function() {
       var t = localStorage.getItem('theme');
-      if (t) document.documentElement.setAttribute('data-theme', t);
+      if (t) {
+        document.documentElement.setAttribute('data-theme', t);
+      } else {
+        t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      var icon = t === 'dark' ? './favicon.ico' : './favicon1.ico';
+      document.querySelector('link[rel="icon"]').href = icon;
+      window.addEventListener('DOMContentLoaded', function() {
+        var logoImg = document.getElementById('logoImg');
+        if (logoImg) logoImg.src = icon;
+      });
     })();
   </script>
   <script src="./xchatuser.js?v=23"></script>
@@ -36,7 +47,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="logo">
-          <img src="./favicon1.ico" alt="logo" width="24" height="24">
+          <img src="./favicon1.ico" id="logoImg" alt="logo" width="24" height="24">
           <span>发个东西</span>
         </div>
         <button class="icon-btn mobile-only" id="closeSidebar">

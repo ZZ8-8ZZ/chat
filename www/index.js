@@ -855,6 +855,10 @@ document.addEventListener('DOMContentLoaded', function() {
       const next = isDark ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
+      const icon = next === 'dark' ? './favicon.ico' : './favicon1.ico';
+      document.querySelector('link[rel="icon"]').href = icon;
+      const logoImg = document.getElementById('logoImg');
+      if (logoImg) logoImg.src = icon;
     });
   }
 
