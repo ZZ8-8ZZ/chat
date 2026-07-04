@@ -4,6 +4,198 @@ const wsUrl = `${wsProtocol}://${window.location.hostname}${window.location.port
 var users = [];
 var me = new XChatUser();
 
+// 消息提醒权限
+let notificationPermission = getNotificationPermission();
+let notificationToastTimer = null;
+let notificationTitleTimer = null;
+let unreadNotificationCount = 0;
+const originalTitle = document.title;
+
+function getNotificationPermission() {
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission || 'default';
+}
+
+function getNotificationFallbackReason() {
+  if (!('Notification' in window)) return '当前浏览器不支持系统通知，将使用页面标题提醒';
+  if (window.isSecureContext === false) return '系统通知需要 HTTPS 或 localhost，当前将使用页面标题提醒';
+  return '';
+}
+
+function updateNotificationButton() {
+  const button = document.getElementById('notificationBtn');
+  if (!button) return;
+
+  notificationPermission = getNotificationPermission();
+  const fallbackReason = getNotificationFallbackReason();
+  button.classList.remove('enabled', 'denied', 'fallback');
+
+  let title = '开启消息通知';
+  if (fallbackReason) {
+    button.classList.add('fallback');
+    title = fallbackReason;
+  } else if (notificationPermission === 'granted') {
+    button.classList.add('enabled');
+    title = '消息通知已开启';
+  } else if (notificationPermission === 'denied') {
+    button.classList.add('denied');
+    title = '通知已被浏览器阻止，请在站点设置中允许通知';
+  }
+
+  button.title = title;
+  button.setAttribute('aria-label', title);
+}
+
+function initNotificationState() {
+  notificationPermission = getNotificationPermission();
+  updateNotificationButton();
+}
+
+// 请求通知权限。必须由用户点击触发，否则很多浏览器会拦截。
+async function requestNotificationPermission() {
+  const fallbackReason = getNotificationFallbackReason();
+  if (fallbackReason) {
+    updateNotificationButton();
+    addChatItem('system', fallbackReason);
+    // 即使不支持系统通知，点击按钮也可以作为一种“开启提醒”的确认，显示一个 Toast 反馈
+    showInPageNotification('提醒已开启', '当前环境不支持系统通知，将使用页面内提醒');
+    return notificationPermission;
+  }
+
+  notificationPermission = getNotificationPermission();
+  if (notificationPermission === 'granted') {
+    updateNotificationButton();
+    addChatItem('system', '消息通知已开启');
+    showInPageNotification('消息通知', '您已经开启了消息通知');
+    return notificationPermission;
+  }
+  
+  if (notificationPermission === 'denied') {
+    updateNotificationButton();
+    addChatItem('system', '通知已被浏览器阻止，请在站点设置中允许通知');
+    alert('通知已被浏览器阻止，请在浏览器地址栏左侧的设置中允许此网站发送通知。');
+    return notificationPermission;
+  }
+
+  try {
+    // 使用更现代的 Promise 语法，同时兼容回调
+    const permission = await new Promise((resolve) => {
+      const promise = Notification.requestPermission(resolve);
+      if (promise && typeof promise.then === 'function') {
+        promise.then(resolve);
+      }
+    });
+    
+    notificationPermission = permission;
+    
+    if (notificationPermission === 'granted') {
+      addChatItem('system', '消息通知已开启');
+      showInPageNotification('设置成功', '消息通知已开启');
+      // 立即发送一个测试通知，确保用户能看到效果
+      new Notification('消息通知已开启', {
+        body: '现在您可以在后台收到新消息提醒了',
+        icon: document.documentElement.getAttribute('data-theme') === 'dark' ? './favicon.ico' : './favicon1.ico'
+      });
+    } else {
+      addChatItem('system', '未获得通知权限，将使用页面标题提醒');
+    }
+  } catch (error) {
+    console.warn('Notification permission request failed:', error);
+    notificationPermission = getNotificationPermission();
+    addChatItem('system', '通知权限申请失败，将使用页面标题提醒');
+  }
+
+  updateNotificationButton();
+  return notificationPermission;
+}
+
+function shouldShowNotification() {
+  return document.hidden || !document.hasFocus();
+}
+
+function showInPageNotification(title, body) {
+  const toast = document.getElementById('notificationToast');
+  if (!toast) return;
+
+  toast.querySelector('.notification-toast-title').textContent = title;
+  toast.querySelector('.notification-toast-body').textContent = body || '';
+  toast.classList.add('visible');
+
+  clearTimeout(notificationToastTimer);
+  notificationToastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 5000);
+}
+
+function startTitleNotification(title) {
+  unreadNotificationCount += 1;
+  const alertTitle = `(${unreadNotificationCount}) ${title}`;
+  let showAlertTitle = true;
+
+  clearInterval(notificationTitleTimer);
+  document.title = alertTitle;
+  notificationTitleTimer = setInterval(() => {
+    document.title = showAlertTitle ? originalTitle : alertTitle;
+    showAlertTitle = !showAlertTitle;
+  }, 1200);
+}
+
+function clearNotificationAttention() {
+  unreadNotificationCount = 0;
+  clearInterval(notificationTitleTimer);
+  notificationTitleTimer = null;
+  document.title = originalTitle;
+
+  const toast = document.getElementById('notificationToast');
+  if (toast) toast.classList.remove('visible');
+}
+
+// 显示通知
+function showNotification(title, options = {}) {
+  const isHidden = shouldShowNotification();
+  let systemNotificationShown = false;
+  
+  // 获取当前主题对应的图标
+  const theme = document.documentElement.getAttribute('data-theme') || 
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const icon = theme === 'dark' ? './favicon.ico' : './favicon1.ico';
+
+  notificationPermission = getNotificationPermission();
+
+  // 只有在页面不可见时才尝试发送系统通知
+  if (isHidden && !getNotificationFallbackReason() && notificationPermission === 'granted') {
+    try {
+      const notification = new Notification(title, {
+        icon: icon,
+        ...options
+      });
+      systemNotificationShown = true;
+      notification.onclick = () => {
+        window.focus();
+        clearNotificationAttention();
+        notification.close();
+      };
+    } catch (error) {
+      console.warn('Notification display failed:', error);
+    }
+  }
+
+  // 始终触发标题闪烁（如果页面不可见）
+  if (isHidden) {
+    startTitleNotification(title);
+  }
+
+  // 如果系统通知没发出来，或者页面当前是可见的（但可能没聚焦），显示页面内 Toast
+  // 这样用户在当前页面操作时也能得到反馈
+  if (!systemNotificationShown) {
+    showInPageNotification(title, options.body);
+  }
+}
+
+// @功能相关变量
+let mentionIndex = -1;
+let selectedMentionUserIndex = 0;
+
 // 添加当前传输用户的引用
 let currentTransferUser = null;
 let currentNickname = '';
@@ -15,6 +207,9 @@ var MD5 = function(d){var r = M(V(Y(X(d),8*d.length)));return r.toLowerCase()};f
 
 // 初始化页面
 function initPage() {
+  // 初始化消息提醒状态
+  initNotificationState();
+
   // 检测WebRTC支持
   if (!window.RTCPeerConnection && !window.webkitRTCPeerConnection) {
     addChatItem('system', '您的浏览器不支持WebRTC，请使用Chrome、Firefox、Safari等现代浏览器访问。');
@@ -226,6 +421,13 @@ function addLinkItem(uid, file) {
   
   const user = users.find(u => u.id === uid);
   const displayName = user?.nickname || uid;
+
+  if (!isMe) {
+    showNotification(`来自 ${displayName} 的新文件`, {
+      body: file.name,
+      tag: 'chat-file'
+    });
+  }
   
   // 检查是否是图片文件
   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
@@ -335,17 +537,20 @@ function addChatItem(uid, message, isBubble = false) {
   }
 
   const chatBox = document.querySelector('.chat-wrapper');
+  if (!chatBox) return;
   const chatItem = document.createElement('div');
   const isMe = uid === me.id;
   const isSystem = uid === 'system';
   chatItem.className = `chat-item ${isMe ? 'me' : ''}`;
   
-  const copyText = message;
-  let msg = message;
+  // 确保 message 是字符串
+  const safeMessage = typeof message === 'string' ? message : String(message || '');
+  let copyText = safeMessage;
+  let msg = safeMessage;
   
   // 只有非系统消息才进行 HTML 转义和 URL 自动链接
   if (!isSystem) {
-    msg = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    msg = safeMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // 判断是否url，兼容端口号和带参数的网址
     if (/(http|https):\/\/[^\s<>"']+/g.test(msg)) {
       msg = msg.replace(/(http|https):\/\/[^\s<>"']+/g, (url) => {
@@ -357,6 +562,75 @@ function addChatItem(uid, message, isBubble = false) {
   const user = users.find(u => u.id === uid);
   const displayName = isSystem ? '系统' : (user?.nickname || uid);
 
+  // 准备用于复制的文本，过滤掉开头的 @ 提到的人
+  if (!isSystem) {
+    // 找出所有可能的 @ 目标
+    const mentionTargets = [];
+    users.forEach(u => {
+      if (u.nickname) mentionTargets.push(`@${u.nickname}`);
+      if (u.id) mentionTargets.push(`@${u.id}`);
+    });
+    // 按长度排序
+    mentionTargets.sort((a, b) => b.length - a.length);
+
+    // 循环移除开头的 @ 目标及其后的空格
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const target of mentionTargets) {
+        if (copyText.startsWith(target)) {
+          copyText = copyText.substring(target.length).trimStart();
+          changed = true;
+          break;
+        }
+      }
+    }
+    // 如果过滤后变为空（只有 @ 提到的人），则保留原样
+    if (!copyText) copyText = safeMessage;
+  }
+
+  // 检查是否提到了我
+  const myNickname = currentNickname || me.nickname || '';
+  const myId = me.id;
+  const isMentioned = !isMe && !isSystem &&
+    ((myNickname && safeMessage.includes(`@${myNickname}`)) || (myId && safeMessage.includes(`@${myId}`)));
+
+  // 处理 @ 高亮
+  if (!isSystem) {
+    // 高亮所有人（支持昵称和 ID）
+    const mentionTargets = [];
+    users.forEach(u => {
+      if (u.nickname) mentionTargets.push(`@${u.nickname}`);
+      if (u.id) mentionTargets.push(`@${u.id}`);
+    });
+
+    // 按长度降序排列，避免短名称先匹配导致长名称匹配不全（例如 @user1 和 @user12）
+    mentionTargets.sort((a, b) => b.length - a.length);
+
+    mentionTargets.forEach(target => {
+      if (msg.includes(target)) {
+        const escapedTarget = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(escapedTarget, 'g');
+        // 检查是否已经 highligh 过，避免重复嵌套
+        msg = msg.replace(reg, (match) => `<span class="mention-highlight">${match}</span>`);
+      }
+    });
+
+    // 修复可能出现的重复高亮嵌套问题（如果有重名或 ID 与昵称重叠）
+    if (msg.includes('</span></span>')) {
+       msg = msg.replace(/<span class="mention-highlight">(<span class="mention-highlight">.*?<\/span>)<\/span>/g, '$1');
+    }
+  }
+
+  // 发送通知
+  if (!isMe && !isSystem) {
+    const notificationTitle = isMentioned ? `有人在频道中 @ 了你` : `来自 ${displayName} 的新消息`;
+    showNotification(notificationTitle, {
+      body: safeMessage,
+      tag: 'chat-msg'
+    });
+  }
+
   const copyButton = document.createElement('button')
   copyButton.className = 'copy-btn'
   copyButton.innerHTML = `
@@ -364,8 +638,8 @@ function addChatItem(uid, message, isBubble = false) {
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
     </svg>`
-  copyButton.onclick = function () {
-    copy(event,copyText)
+  copyButton.onclick = function (event) {
+    copy(event, copyText)
   }
 
   if (isSystem && !isBubble) {
@@ -379,7 +653,7 @@ function addChatItem(uid, message, isBubble = false) {
     `;
     chatItem.querySelector('.chat-item_content').appendChild(copyButton);
   }
-  
+
   chatBox.appendChild(chatItem);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -488,12 +762,14 @@ function connectAllOther() {
 
 
 function refreshUsers(data) {
-  resUsers = data.map(
+  const resUsers = data.map(
     u => {
       let uOld = users.find(uOld => uOld.id === u.id)
       if (uOld) {
-        // 保持原有昵称
-        u.nickname = u.nickname || uOld.nickname;
+        // 更新昵称
+        if (u.nickname) {
+          uOld.nickname = u.nickname;
+        }
         return uOld;
       }
       let xchatUser = new XChatUser();
@@ -517,6 +793,13 @@ function refreshUsers(data) {
   });
 
   users = resUsers;
+  // 同步 me 对象的昵称
+  const myUserObj = users.find(u => u.isMe);
+  if (myUserObj && myUserObj.nickname) {
+    currentNickname = myUserObj.nickname;
+    me.nickname = myUserObj.nickname;
+  }
+
   for (const u of users) {
     u.onmessage = (msg) => {
       addChatItem(u.id, msg);
@@ -533,7 +816,8 @@ function joinedRoom() {
 }
 
 function addCandidate(data) {
-  users.find(u => u.id === data.targetId).addIceCandidate(data.candidate);
+  const user = users.find(u => u.id === data.targetId);
+  if (user) user.addIceCandidate(data.candidate);
 }
 async function joinConnection(data) {
   const user = users.find(u => u.id === data.targetId)
@@ -558,7 +842,9 @@ async function joinedConnection(data) {
 }
 
 function refreshUsersHTML() {
-  document.querySelector('#users').innerHTML = users.map(u => {
+  const userListEl = document.querySelector('#users');
+  if (!userListEl) return;
+  userListEl.innerHTML = users.map(u => {
     const isConnected = u.isMe || u.isConnected();
     const displayName = u.nickname || u.id;
     const initial = displayName.charAt(0).toUpperCase();
@@ -579,7 +865,94 @@ function refreshUsersHTML() {
   }).join('');
 }
 
+// 更新 @ 列表显示
+function updateMentionList(filter = '') {
+  const list = document.getElementById('mentionList');
+  if (!list) return;
+
+  const otherUsers = users.filter(u => !u.isMe);
+  const filteredUsers = otherUsers.filter(u => {
+    const name = u.nickname || u.id;
+    return name.toLowerCase().includes(filter.toLowerCase());
+  });
+
+  if (filteredUsers.length === 0) {
+    list.style.display = 'none';
+    mentionIndex = -1;
+    return;
+  }
+
+  // 确保选中索引不越界
+  if (selectedMentionUserIndex >= filteredUsers.length) {
+    selectedMentionUserIndex = 0;
+  }
+
+  list.innerHTML = filteredUsers.map((u, index) => {
+    const name = u.nickname || u.id;
+    const initial = name.charAt(0).toUpperCase();
+    const isConnected = u.isConnected();
+    return `
+      <div class="mention-item ${index === selectedMentionUserIndex ? 'active' : ''}" onclick="insertMention('${name.replace(/'/g, "\\'")}')">
+        <div class="user-avatar" style="background-color: ${isConnected ? 'var(--primary)' : 'var(--text-muted)'}">
+          ${initial}
+        </div>
+        <span class="user-name">${name}</span>
+      </div>
+    `;
+  }).join('');
+  list.style.display = 'block';
+  mentionIndex = 0;
+}
+
+// 插入 @ 用户
+function insertMention(name) {
+  const input = document.getElementById('messageInput');
+  const text = input.value;
+  const before = text.substring(0, text.lastIndexOf('@', input.selectionStart - 1));
+  const after = text.substring(input.selectionStart);
+  input.value = before + '@' + name + ' ' + after;
+  input.focus();
+  const newPos = before.length + name.length + 2;
+  input.setSelectionRange(newPos, newPos);
+  document.getElementById('mentionList').style.display = 'none';
+  mentionIndex = -1;
+
+  // 触发输入框高度调整
+  const event = new Event('input');
+  input.dispatchEvent(event);
+}
+
 function enterTxt(event) {
+  const mentionList = document.getElementById('mentionList');
+  if (mentionList && mentionList.style.display === 'block') {
+    const items = mentionList.querySelectorAll('.mention-item');
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      selectedMentionUserIndex = (selectedMentionUserIndex - 1 + items.length) % items.length;
+      updateMentionList(getCurrentMentionFilter());
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      selectedMentionUserIndex = (selectedMentionUserIndex + 1) % items.length;
+      updateMentionList(getCurrentMentionFilter());
+      return;
+    }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault();
+      const activeItem = mentionList.querySelector('.mention-item.active');
+      if (activeItem) {
+        activeItem.click();
+      }
+      return;
+    }
+    if (event.key === 'Escape') {
+      mentionList.style.display = 'none';
+      mentionIndex = -1;
+      return;
+    }
+  }
+
   if (event.ctrlKey || event.shiftKey) {
     return;
   }
@@ -587,6 +960,16 @@ function enterTxt(event) {
     sendMessage();
     event.preventDefault();
   }
+}
+
+function getCurrentMentionFilter() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.substring(0, input.selectionStart);
+  const atIndex = text.lastIndexOf('@');
+  if (atIndex !== -1) {
+    return text.substring(atIndex + 1);
+  }
+  return '';
 }
 
 function showUserSelectModal() {
@@ -765,7 +1148,7 @@ function saveNickname() {
   let nickname = input.value.trim();
   
   if (nickname) {
-    nickname = nickname.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // 存储原始昵称，显示时再转义
     currentNickname = nickname;
     document.cookie = `nickname=${encodeURIComponent(nickname)}; path=/; max-age=31536000`; // 保存一年
     
@@ -773,6 +1156,7 @@ function saveNickname() {
     const user = users.find(u => u.id === me.id);
     if (user) {
       user.nickname = nickname;
+      me.nickname = nickname;
       refreshUsersHTML();
     }
     
@@ -836,12 +1220,42 @@ document.addEventListener('DOMContentLoaded', function() {
       const newHeight = Math.min(this.scrollHeight, 150);
       this.style.height = newHeight + 'px';
       this.style.overflowY = this.scrollHeight > 150 ? 'auto' : 'hidden';
+
+      // 处理 @ 功能
+      const text = this.value.substring(0, this.selectionStart);
+      const atIndex = text.lastIndexOf('@');
+      if (atIndex !== -1 && (atIndex === 0 || /\s/.test(text[atIndex - 1]))) {
+        const filter = text.substring(atIndex + 1);
+        if (!/\s/.test(filter)) {
+          updateMentionList(filter);
+        } else {
+          document.getElementById('mentionList').style.display = 'none';
+        }
+      } else {
+        document.getElementById('mentionList').style.display = 'none';
+      }
+    });
+
+    // 点击其他地方关闭 @ 列表
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.mention-list') && !e.target.closest('#messageInput')) {
+        const list = document.getElementById('mentionList');
+        if (list) list.style.display = 'none';
+      }
     });
   }
 
   document.querySelector('.nickname-btn')?.addEventListener('click', showNicknameModal);
   document.querySelector('.create-room-btn')?.addEventListener('click', showCreateRoomModal);
   document.getElementById('qrcodeBtn')?.addEventListener('click', showQrcodeModal);
+  document.getElementById('notificationBtn')?.addEventListener('click', requestNotificationPermission);
+
+  window.addEventListener('focus', clearNotificationAttention);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      clearNotificationAttention();
+    }
+  });
 
   const themeToggle = document.getElementById('themeToggle');
   if (themeToggle) {

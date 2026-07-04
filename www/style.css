@@ -281,7 +281,7 @@ body.dragover .dragtip {
   margin: 12px 0;
   font-size: 0.85rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  max-width: 90%;
+  max-width: 100%;
   text-align: center;
 }
 
@@ -305,6 +305,64 @@ body.dragover .dragtip {
   padding: 16px 20px;
   background: var(--bg-chat);
   border-top: 1px solid var(--border);
+  position: relative;
+}
+
+.mention-list {
+  position: absolute;
+  bottom: 100%;
+  left: 20px;
+  right: 20px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  z-index: 100;
+  margin-bottom: 8px;
+}
+
+.mention-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: var(--transition);
+}
+
+.mention-item:hover, .mention-item.active {
+  background: var(--bg-input);
+}
+
+.mention-item .user-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 0.7rem;
+}
+
+.mention-item .user-name {
+  font-size: 0.9rem;
+}
+
+.mention-highlight {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--primary);
+  padding: 0 4px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.me .mention-highlight {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.me .chat-item_content a {
+  color: white;
+  text-decoration: underline;
 }
 
 .input-container {
@@ -366,6 +424,64 @@ textarea#messageInput:focus {
 .icon-btn:hover {
   background: var(--bg-input);
   color: var(--primary);
+}
+
+.icon-btn.notification-btn.enabled {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--primary);
+}
+
+.icon-btn.notification-btn.denied {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.icon-btn.notification-btn.fallback {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+
+.notification-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 88px;
+  z-index: 1100;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sidebar);
+  color: var(--text-main);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.notification-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notification-toast-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-toast-body {
+  margin-top: 4px;
+  color: var(--text-muted);
+  display: -webkit-box;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .send-btn {
@@ -701,6 +817,13 @@ textarea#messageInput:focus {
   
   .mobile-overlay.visible {
     display: block;
+  }
+
+  .notification-toast {
+    left: 16px;
+    right: 16px;
+    bottom: 96px;
+    width: auto;
   }
 }
 
