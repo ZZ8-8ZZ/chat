@@ -525,6 +525,18 @@ textarea#messageInput:focus {
   background: var(--primary-hover);
 }
 
+.join-room-btn {
+  margin-top: 10px;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.join-room-btn:hover {
+  background: var(--primary);
+  color: white;
+}
+
 .github-link {
   width: 100%;
   padding: 10px;
@@ -1013,17 +1025,32 @@ textarea#messageInput:focus {
   background: var(--primary);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.85rem;
   font-weight: 500;
 }
 
 .qrcode-copy-btn:hover {
   background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .qrcode-copy-btn.success {
   background: #10b981;
+  color: white;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  transform: scale(1.03);
+}
+
+.qrcode-copy-btn.success svg {
+  animation: checkBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes checkBounce {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }

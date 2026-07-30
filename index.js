@@ -31,6 +31,44 @@ function getLocalIP() {
     }
   }
   
+  // 通过系统路由表获取默认网关对应的本机IP（快速、可靠）
+  try {
+    const { execSync } = require('child_process');
+    if (process.platform === 'win32') {
+      // route print 0.0.0.0 是原生 Windows 命令，执行很快
+      const routeOutput = execSync('chcp 65001 >nul & route print 0.0.0.0', { encoding: 'utf8', timeout: 3000 });
+      const lines = routeOutput.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // 匹配 "0.0.0.0 0.0.0.0 192.168.101.1 192.168.101.6 ..." 这样的行
+        if (/^0\.0\.0\.0\s+0\.0\.0\.0\s+\d/.test(trimmed)) {
+          const parts = trimmed.split(/\s+/);
+          if (parts.length >= 4) {
+            const ifaceIP = parts[3];
+            const match = candidates.find(c => c.address === ifaceIP);
+            if (match) return match.address;
+          }
+        }
+      }
+    } else {
+      // Linux: 通过 ip route 获取出口 IP
+      const result = execSync("ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \\K\\S+'",
+        { encoding: 'utf8', timeout: 3000 }).trim();
+      if (result && candidates.find(c => c.address === result)) {
+        return result;
+      }
+      // macOS
+      const result2 = execSync("route get 1.1.1.1 2>/dev/null | awk '/interface:/{print $2}' | xargs ipconfig getifaddr 2>/dev/null",
+        { encoding: 'utf8', timeout: 3000 }).trim();
+      if (result2 && candidates.find(c => c.address === result2)) {
+        return result2;
+      }
+    }
+  } catch (e) {
+    // 命令失败时回退
+  }
+  
+  // 回退：按私有地址前缀优先级匹配
   const privatePrefix = ['192.168.', '10.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.'];
   
   for (const prefix of privatePrefix) {

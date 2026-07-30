@@ -49,6 +49,14 @@ function updateNotificationButton() {
 function initNotificationState() {
   notificationPermission = getNotificationPermission();
   updateNotificationButton();
+
+  // 主动向用户申请通知权限（仅在权限尚未决定时）
+  if (notificationPermission === 'default' && !getNotificationFallbackReason()) {
+    // 延迟一小段时间再弹出，避免阻塞页面初始化
+    setTimeout(() => {
+      requestNotificationPermission();
+    }, 1500);
+  }
 }
 
 // 请求通知权限。必须由用户点击触发，否则很多浏览器会拦截。
@@ -234,6 +242,15 @@ function initPage() {
           submitRoomPassword();
         }
       };
+      // 检查是否有从加入房间页面传来的密码
+      const savedPwd = sessionStorage.getItem('join_room_pwd');
+      if (savedPwd) {
+        passwordInput.value = savedPwd;
+        sessionStorage.removeItem('join_room_pwd');
+        // 自动提交密码
+        submitRoomPassword();
+        return;
+      }
       // 自动聚焦密码输入框 
       if (!navigator.userAgent.match(/Android/i) && !navigator.userAgent.match(/iPhone/i) && !navigator.userAgent.match(/iPad/i) && !navigator.userAgent.match(/iPod/i)) {
         setTimeout(() => passwordInput.focus(), 0);
@@ -1247,6 +1264,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.querySelector('.nickname-btn')?.addEventListener('click', showNicknameModal);
   document.querySelector('.create-room-btn')?.addEventListener('click', showCreateRoomModal);
+  document.querySelector('.join-room-btn')?.addEventListener('click', showJoinRoomModal);
   document.getElementById('qrcodeBtn')?.addEventListener('click', showQrcodeModal);
   document.getElementById('notificationBtn')?.addEventListener('click', requestNotificationPermission);
 
@@ -1397,6 +1415,55 @@ function copyRoomUrl() {
 
 let qrcodeInstance = null;
 let serverPublicUrl = '';
+
+function showJoinRoomModal() {
+  const modal = document.getElementById('joinRoomModal');
+  if (!modal) return;
+  const roomIdInput = document.getElementById('joinRoomIdInput');
+  if (roomIdInput) roomIdInput.value = '';
+  const pwdInput = document.getElementById('joinRoomPwdInput');
+  if (pwdInput) pwdInput.value = '';
+  modal.style.display = 'block';
+
+  // 添加回车事件监听
+  const handleEnter = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitJoinRoom();
+    }
+  };
+  if (roomIdInput) {
+    roomIdInput.onkeydown = handleEnter;
+    setTimeout(() => roomIdInput.focus(), 0);
+  }
+  if (pwdInput) {
+    pwdInput.onkeydown = handleEnter;
+  }
+}
+
+function closeJoinRoomModal() {
+  document.getElementById('joinRoomModal').style.display = 'none';
+}
+
+function submitJoinRoom() {
+  const roomId = document.getElementById('joinRoomIdInput').value.trim();
+  const pwd = document.getElementById('joinRoomPwdInput').value;
+
+  if (!roomId || roomId.length < 2 || roomId.length > 32) {
+    alert('房间号长度需在2-32个字符之间');
+    return;
+  }
+  if (!pwd) {
+    alert('请输入密码');
+    return;
+  }
+
+  const md5Pwd = MD5(pwd);
+  // 将密码存入sessionStorage，供目标页面自动填充
+  sessionStorage.setItem('join_room_pwd', pwd);
+  closeJoinRoomModal();
+  window.location.href = `/${roomId}`;
+}
 
 async function getServerUrl() {
   const hostname = window.location.hostname;
